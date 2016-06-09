@@ -16,6 +16,8 @@ This document defines the roadmap for TiDB development.
 - [x] Join (LEFT JOIN / RIGHT JOIN / CROSS JOIN)
 - [x] Simple Subquery
 - [x] Asynchronous schema change
+- [x] MPP SQL
+    - [x] Push down 
 
 
 ##### __API__  
@@ -33,7 +35,7 @@ This document defines the roadmap for TiDB development.
 
 ##### __Admin Tool__  
 - [x] PhpMyAdmin 
-- [ ] Homemade admin tool [WIP]
+- [x] Homemade admin tool
 
 
 ##### __Storage__  
@@ -42,8 +44,8 @@ This document defines the roadmap for TiDB development.
 - [x] RocksDB
 - [x] LMDB
 - [x] HBase
-- [x] Homemade distributed KV:
-    - [ ] Transactions
-    - [ ] Replicate log using Paxos/Raft
-    - [ ] Auto-Rebalance
+- [x] Homemade distributed KV ([pingcap/tikv](https://github.com/pingcap/tikv)):
+    - [x] Transactions
+    - [x] Replicate log using Paxos/Raft
+    - [x] Scale and Auto-Rebalance
     - [ ] Geo replicated
