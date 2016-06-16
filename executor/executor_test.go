@@ -653,6 +653,13 @@ func (s *testSuite) TestSelectOrderBy(c *C) {
 	tk.MustExec("commit")
 
 	tk.MustExec("begin")
+	// Test limit
+	r = tk.MustQuery("select id as c1, name from select_order_test order by 2, id limit 1 offset 0;")
+	rowStr = fmt.Sprintf("%v %v", 1, []byte("hello"))
+	r.Check(testkit.Rows(rowStr))
+	tk.MustExec("commit")
+
+	tk.MustExec("begin")
 	// Test limit overflow
 	r = tk.MustQuery("select * from select_order_test order by name, id limit 100 offset 0;")
 	rowStr1 := fmt.Sprintf("%v %v", 1, []byte("hello"))

@@ -93,6 +93,9 @@ func (b *planBuilder) buildResultSetNode(node ast.ResultSetNode) Plan {
 			b.err = ErrUnsupportedType.Gen("unsupported table source type %T", v)
 			return nil
 		}
+		if b.err != nil {
+			return nil
+		}
 		if v, ok := p.(*NewTableScan); ok {
 			v.TableAsName = &x.AsName
 		}
@@ -245,11 +248,12 @@ func (b *planBuilder) buildSelection(p Plan, where ast.ExprNode, mapper map[*ast
 	return selection
 }
 
-func (b *planBuilder) buildProjection(p Plan, fields []*ast.SelectField, mapper map[*ast.AggregateFuncExpr]int) Plan {
+func (b *planBuilder) buildProjection(p Plan, fields []*ast.SelectField, mapper map[*ast.AggregateFuncExpr]int) (Plan, int) {
 	proj := &Projection{Exprs: make([]expression.Expression, 0, len(fields))}
 	proj.id = b.allocID(proj)
 	proj.correlated = p.IsCorrelated()
 	schema := make(expression.Schema, 0, len(fields))
+	oldLen := 0
 	for _, field := range fields {
 		var tblName, colName model.CIStr
 		if field.WildCard != nil {
@@ -269,12 +273,18 @@ func (b *planBuilder) buildProjection(p Plan, fields []*ast.SelectField, mapper 
 					ColName: col.ColName,
 					RetType: newExpr.GetType()}
 				schema = append(schema, schemaCol)
+				if !field.Extra {
+					oldLen++
+				}
 			}
 		} else {
 			newExpr, np, correlated, err := b.rewrite(field.Expr, p, mapper)
 			if err != nil {
 				b.err = errors.Trace(err)
-				return nil
+				return nil, oldLen
+			}
+			if !field.Extra {
+				oldLen++
 			}
 			p = np
 			proj.correlated = proj.correlated || correlated
@@ -301,7 +311,7 @@ func (b *planBuilder) buildProjection(p Plan, fields []*ast.SelectField, mapper 
 	}
 	proj.SetSchema(schema)
 	addChild(proj, p)
-	return proj
+	return proj, oldLen
 }
 
 func (b *planBuilder) buildNewDistinct(src Plan) Plan {
@@ -479,6 +489,42 @@ func (b *planBuilder) extractAggFunc(sel *ast.SelectStmt) (
 	return aggList, havingMapper, orderByMapper, totalAggMapper
 }
 
+type astColsReplacer struct {
+	sel *Projection
+	err error
+}
+
+func (e *astColsReplacer) Enter(inNode ast.Node) (ast.Node, bool) {
+	switch v := inNode.(type) {
+	case *ast.ColumnName:
+		selCol, err := e.sel.GetSchema().FindColumn(v)
+		if err != nil {
+			e.err = errors.Trace(err)
+			return inNode, true
+		}
+		if selCol == nil {
+			selCol, err = e.sel.GetChildByIndex(0).GetSchema().FindColumn(v)
+			if err != nil {
+				e.err = errors.Trace(err)
+				return inNode, true
+			}
+			if selCol == nil {
+				e.err = errors.Errorf("Can't find Column %s", v.Name)
+				return inNode, true
+			}
+			e.sel.Exprs = append(e.sel.Exprs, selCol)
+			e.sel.schema = append(e.sel.schema, selCol.DeepCopy().(*expression.Column))
+		}
+	case *ast.SubqueryExpr, *ast.CompareSubqueryExpr, *ast.ExistsSubqueryExpr:
+		return inNode, true
+	}
+	return inNode, false
+}
+
+func (e *astColsReplacer) Leave(inNode ast.Node) (ast.Node, bool) {
+	return inNode, true
+}
+
 func (b *planBuilder) buildNewSelect(sel *ast.SelectStmt) Plan {
 	hasAgg := b.detectSelectAgg(sel)
 	var aggFuncs []*ast.AggregateFuncExpr
@@ -515,13 +561,31 @@ func (b *planBuilder) buildNewSelect(sel *ast.SelectStmt) Plan {
 			p = b.buildAggregation(p, aggFuncs, nil)
 		}
 	}
-	p = b.buildProjection(p, sel.Fields.Fields, totalMap)
+	var oldLen int
+	p, oldLen = b.buildProjection(p, sel.Fields.Fields, totalMap)
 	if b.err != nil {
 		return nil
+	}
+	replacer := &astColsReplacer{sel: p.(*Projection)}
+	if sel.Having != nil && !hasAgg {
+		sel.Having.Expr.Accept(replacer)
+		if replacer.err != nil {
+			b.err = errors.Trace(replacer.err)
+			return nil
+		}
+	}
+	if sel.OrderBy != nil && !hasAgg {
+		for _, item := range sel.OrderBy.Items {
+			item.Expr.Accept(replacer)
+		}
 	}
 	if sel.Having != nil {
 		p = b.buildSelection(p, sel.Having.Expr, havingMap)
 		if b.err != nil {
+			return nil
+		}
+		if replacer.err != nil {
+			b.err = errors.Trace(replacer.err)
 			return nil
 		}
 	}
@@ -544,14 +608,8 @@ func (b *planBuilder) buildNewSelect(sel *ast.SelectStmt) Plan {
 			return nil
 		}
 	}
-	extraLen := 0
-	for _, field := range sel.Fields.Fields {
-		if field.Extra {
-			extraLen++
-		}
-	}
-	if extraLen > 0 {
-		return b.buildTruncate(p, len(p.GetSchema())-extraLen)
+	if oldLen != len(p.GetSchema()) {
+		return b.buildTruncate(p, oldLen)
 	}
 	return p
 }
