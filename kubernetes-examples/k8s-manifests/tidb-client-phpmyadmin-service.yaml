@@ -1,0 +1,22 @@
+# Maintainer tangfeixiong <fxtang@qingyuanos.com>
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    qingyuanos.io/catalog-by: '{"version": "v1alpha", "lib": "https://github.com/qingyuancloud/kube-harpoon", "repo": "https://github.com/phpmyadmin/phpmyadmin"}'
+  labels:
+    app: tidb-client-phpmyadmin
+    developer: phpmyadmin.net
+    heritage: qingyuancloud
+    project: phpmyadmin
+  name: tidb-client-phpmyadmin
+spec:
+  ports:
+  - name: wui
+    nodePort: 32132 # Optional, or Kubernetes generate a random port if not customized
+    port: 80
+    protocol: TCP
+  selector:
+    app: tidb-client-phpmyadmin
+  type: NodePort

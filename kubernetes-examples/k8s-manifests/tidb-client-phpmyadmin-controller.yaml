@@ -1,0 +1,40 @@
+# Maintainer tangfeixiong <fxtang@qingyuanos.com>
+---
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  annotations:
+    qingyuanos.io/catalog-by: '{"version": "v1alpha", "lib": "https://github.com/qingyuancloud/kube-harpoon", "repo": "https://github.com/phpmyadmin/phpmyadmin"}'
+  labels:
+    app: tidb-client-phpmyadmin
+    developer: phpmyadmin.net
+    heritage: qingyuancloud
+    project: phpmyadmin
+    server: tidb-server
+  name: tidb-client-phpmyadmin
+  # namespace: harpoon
+spec:
+  replicas: 1
+  selector:
+    app: tidb-client-phpmyadmin
+  template:
+    metadata:
+      labels:
+        app: tidb-client-phpmyadmin
+        developer: phpmyadmin.net
+        heritage: qingyuancloud
+        project: phpmyadmin
+        server: tidb-server
+      name: tidb-client-phpmyadmin
+    spec:
+      containers:
+      - env:
+        - name: Q8SAD_ENV
+          value: TIDB_SERVER
+        image: tangfeixiong/tidb-client-phpmyadmin:4.6.3
+        imagePullPolicy: IfNotPresent
+        name: tidb-client-phpmyadmin
+        ports:
+        - containerPort: 80
+          name: wui
+          protocol: TCP

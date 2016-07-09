@@ -1,0 +1,42 @@
+# Maintainer: tangfx <fxtang@qingyuanos.com>
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  annotations:
+    qingyuanos.io/catalog-by: '{"version": "v1alpha", "lib": "https://github.com/qingyuancloud/kube-harpoon", "repo": "https://github.com/pingcap/tidb"}'
+  labels:
+    app: tidb-server
+    developer: pingcap
+    heritage: qingyuancloud
+    project: tidb
+  name: tidb-server
+  # namespace: harpoon
+spec:
+  replicas: 1
+  selector:
+    name: tidb-server
+  template:
+    metadata:
+      labels:
+        name: tidb-server
+    spec:
+      containers:
+      - image: tangfeixiong/tidb-server
+        imagePullPolicy: IfNotPresent
+        name: tidb-server
+        ports:
+        - containerPort: 4000
+          name: mp
+          protocol: TCP
+        - containerPort: 10080
+          name: status
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /tmp/tidb
+          name: data
+      volumes:
+      - emptyDir: {}
+        name: ephemeral
+      - hostPath:
+          path: /tmp/tidb
+        name: data

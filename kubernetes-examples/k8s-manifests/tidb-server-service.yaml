@@ -1,0 +1,24 @@
+# Maintainer: tangfeixiong <fxtang@qingyuanos.com>
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    qingyuanos.io/catalog-by: '{"version": "v1alpha", "lib": "https://github.com/qingyuancloud/kube-harpoon", "repo": "https://github.com/pingcap/tidb"}'
+  labels:
+    app: tidb-server
+    developer: pingcap
+    heritage: qingyuancloud
+    project: tidb
+  name: tidb-server
+  # namespace: harpoon
+spec:
+  ports:
+  - name: tidb-server-mp
+    port: 4000
+    protocol: TCP
+  - name: tidb-server-status
+    port: 10080
+    protocol: TCP
+  selector:
+    name: tidb-server
