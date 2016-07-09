@@ -281,7 +281,9 @@ Build image with Kubernetes service auto discovery
     Removing intermediate container dc5061d7354d
     Successfully built 644cd34f680e
 
-* K8s manifests
+* K8s 
+
+Play with manifests
 
     [vagrant@localhost docker-phpmyadmin-kubernetes]$ cd ../k8s-manifests
     [vagrant@localhost k8s-manifests]$ kubectl --namespace=harpoon get pods -l name=tidb-server
