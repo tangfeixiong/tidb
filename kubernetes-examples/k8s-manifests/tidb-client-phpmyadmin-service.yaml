@@ -14,7 +14,7 @@ metadata:
 spec:
   ports:
   - name: wui
-    nodePort: 32132 # Optional, or Kubernetes generate a random port if not customized
+    nodePort: 30052 # Optional, or Kubernetes generate a random port if not customized
     port: 80
     protocol: TCP
   selector:
